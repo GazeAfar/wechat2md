@@ -152,35 +152,127 @@ export class WeChatExtractor {
       
       console.log('开始模拟滚动加载文章...');
       
+      // 先检查页面内容
+      const pageContent = await page.content();
+      console.log('页面标题:', await page.title());
+      console.log('页面URL:', page.url());
+      console.log('页面内容长度:', pageContent.length);
+      
       for (let i = 0; i < maxScrollAttempts; i++) {
-        // 提取当前页面的文章链接
+        // 提取当前页面的文章链接 - 使用增强的提取策略
         const currentLinks = await page.evaluate(() => {
           const links: string[] = [];
-          const selectors = [
+          const debugInfo: any = {};
+          
+          const cssSelectors = [
             'a[href*="/s?"]',
             'a[href*="mp.weixin.qq.com/s"]',
             'a[href*="__biz="]',
             '.album_item a',
             '.article-item a',
             '.appmsg_item a',
-            '.js_album_item a'
+            '.js_album_item a',
+            '.item a',
+            '[data-link]',
+            '[data-url]'
           ];
           
-          selectors.forEach(selector => {
+          // 辅助函数：检查URL是否有效
+          const isValidArticleUrl = (url: string): boolean => {
+            if (!url) return false;
+            return url.includes('mp.weixin.qq.com/s') || url.includes('__biz=') || url.includes('chksm=');
+          };
+          
+          // 辅助函数：添加链接到结果
+          const addLink = (url: string) => {
+            if (url && isValidArticleUrl(url) && !links.includes(url)) {
+              links.push(url);
+            }
+          };
+          
+          // 策略1: CSS选择器
+          cssSelectors.forEach(selector => {
             const elements = document.querySelectorAll(selector);
+            debugInfo[selector] = elements.length;
+            
             elements.forEach(element => {
               const href = (element as HTMLAnchorElement).href;
-              if (href && href.includes('mp.weixin.qq.com/s') && href.includes('__biz=')) {
-                links.push(href);
+              const dataLink = element.getAttribute('data-link');
+              const dataUrl = element.getAttribute('data-url');
+              
+              // 检查多个可能的URL属性
+              [href, dataLink, dataUrl].forEach(url => {
+                if (url) addLink(url);
+              });
+            });
+          });
+
+          // 策略2: XPath选择器（通过CSS模拟）
+          const xpathSelectors = [
+            '.album_item a, [class*="album_item"] a',
+            '[class*="item"] a'
+          ];
+          
+          xpathSelectors.forEach(selector => {
+            try {
+              const elements = document.querySelectorAll(selector);
+              debugInfo[`xpath_${selector}`] = elements.length;
+              elements.forEach(element => {
+                const href = (element as HTMLAnchorElement).href;
+                addLink(href);
+              });
+            } catch (e) {
+              debugInfo[`xpath_${selector}`] = 0;
+            }
+          });
+          
+          // 策略3: 从页面源码中使用正则表达式提取
+          const pageSource = document.documentElement.outerHTML;
+          const patterns = [
+            /href="([^"]*mp\.weixin\.qq\.com\/s[^"]*)"/g,
+            /"url":"([^"]*mp\.weixin\.qq\.com\/s[^"]*)"/g,
+            /data-link="([^"]*mp\.weixin\.qq\.com\/s[^"]*)"/g,
+            /data-url="([^"]*mp\.weixin\.qq\.com\/s[^"]*)"/g,
+            /"link":"([^"]*mp\.weixin\.qq\.com\/s[^"]*)"/g,
+            /content_url":"([^"]*mp\.weixin\.qq\.com\/s[^"]*)"/g,
+            /([^"\s]*__biz=[^"\s&]*[^"\s]*)/g,
+            /(https?:\/\/mp\.weixin\.qq\.com\/s\?[^"\s]*)/g
+          ];
+          
+          let regexMatches = 0;
+          patterns.forEach(pattern => {
+            const matches = [...pageSource.matchAll(pattern)];
+            regexMatches += matches.length;
+            matches.forEach(match => {
+              if (match[1]) {
+                addLink(decodeURIComponent(match[1]));
               }
             });
           });
           
-          return Array.from(new Set(links));
+          // 额外检查：查找所有a标签
+          const allLinks = document.querySelectorAll('a');
+          debugInfo['total_links'] = allLinks.length;
+          debugInfo['regex_matches'] = regexMatches;
+          debugInfo['wechat_links'] = links.length;
+          
+          return { 
+            links: Array.from(new Set(links)), 
+            debug: debugInfo, 
+            examples: links.slice(0, 3) 
+          };
+        });
         });
 
         // 添加新链接
-        currentLinks.forEach(link => articleLinks.add(link));
+        const linksArray = currentLinks.links || currentLinks;
+        linksArray.forEach((link: string) => articleLinks.add(link));
+        
+        // 输出调试信息
+        if (currentLinks.debug) {
+          console.log(`滚动第 ${i + 1} 次调试信息:`, JSON.stringify(currentLinks.debug, null, 2));
+          console.log('找到的微信链接示例:', currentLinks.examples);
+        }
         
         console.log(`滚动第 ${i + 1} 次，当前找到 ${articleLinks.size} 个链接`);
         
@@ -203,13 +295,13 @@ export class WeChatExtractor {
         
         previousCount = articleLinks.size;
         
-        // 滚动到页面底部
+        // 滚动页面
         await page.evaluate(() => {
-          window.scrollTo(0, document.body.scrollHeight);
+          window.scrollBy(0, window.innerHeight);
         });
         
-        // 等待懒加载
-        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000));
+        // 等待内容加载
+        await page.waitForTimeout(2000);
       }
 
       await browser.close();
