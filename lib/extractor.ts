@@ -1,8 +1,8 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
-import { Browser, Page } from 'puppeteer';
-import puppeteer from 'puppeteer';
+import { Browser, Page } from 'puppeteer-core';
+import puppeteer from 'puppeteer-core';
 
 // 配置 Turndown 服务
 const turndownService = new TurndownService({
@@ -117,6 +117,7 @@ export class WeChatExtractor {
       
       browser = await puppeteer.launch({
         headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -124,7 +125,9 @@ export class WeChatExtractor {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor'
         ]
       });
 

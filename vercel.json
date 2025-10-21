@@ -8,7 +8,17 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true",
+    "PUPPETEER_EXECUTABLE_PATH": "/usr/bin/google-chrome-stable"
+  },
+  "functions": {
+    "app/api/extract/album/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/extract/single/route.ts": {
+      "maxDuration": 30
+    }
   },
   "headers": [
     {
