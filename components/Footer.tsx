@@ -68,7 +68,7 @@ export default function Footer() {
         <div className="border-t border-gray-200 mt-8 pt-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-500">
-              © 2024 微信公众号文章提取工具. 保留所有权利.
+              © 2025 微信公众号文章提取工具. 保留所有权利.
             </p>
             
             <div className="flex items-center gap-4 text-sm text-gray-500">

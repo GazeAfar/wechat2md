@@ -241,7 +241,8 @@ export class WeChatExtractor {
           
           let regexMatches = 0;
           patterns.forEach(pattern => {
-            const matches = [...pageSource.matchAll(pattern)];
+            const matchIterator = pageSource.matchAll(pattern);
+            const matches = Array.from(matchIterator);
             regexMatches += matches.length;
             matches.forEach(match => {
               if (match[1]) {
@@ -261,7 +262,6 @@ export class WeChatExtractor {
             debug: debugInfo, 
             examples: links.slice(0, 3) 
           };
-        });
         });
 
         // 添加新链接
@@ -301,7 +301,7 @@ export class WeChatExtractor {
         });
         
         // 等待内容加载
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       await browser.close();
@@ -421,54 +421,6 @@ export class WeChatExtractor {
     }
   }
 
-  /**
-   * 传统方式提取专辑文章（保留兼容性）
-   */
-  async extractAlbumArticles(albumUrl: string, maxCount: number = 15): Promise<ArticleInfo[]> {
-    try {
-      console.log(`开始提取专辑: ${albumUrl}, 最大数量: ${maxCount}`);
-      
-      const response = await axios.get(albumUrl, {
-        headers: {
-          'User-Agent': this.getRandomUserAgent(),
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none',
-          'Upgrade-Insecure-Requests': '1'
-        },
-        timeout: 60000,
-        maxRedirects: 5
-      });
-
-      console.log(`页面响应状态: ${response.status}, 内容长度: ${response.data.length}`);
-      
-      const $ = cheerio.load(response.data);
-      
-      const title = $('title').text();
-      console.log(`页面标题: ${title}`);
-      
-      const articleLinks = this.extractArticleLinks($, maxCount);
-      
-      console.log(`找到 ${articleLinks.length} 篇文章`);
-      
-      if (articleLinks.length === 0) {
-        console.log('页面内容预览:', response.data.substring(0, 1000));
-        throw new Error('未找到任何文章链接，可能是页面结构发生变化或需要登录');
-      }
-      
-      return await this.extractArticlesBatch(articleLinks);
-      
-    } catch (error) {
-      console.error('提取专辑失败:', error);
-      throw new Error(`提取专辑失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  }
-
   private extractTitle($: cheerio.CheerioAPI): string {
     const selectors = [
       '#activity-name',
@@ -568,99 +520,6 @@ export class WeChatExtractor {
     });
     
     return images;
-  }
-
-  private extractArticleLinks($: cheerio.CheerioAPI, maxCount: number): string[] {
-    const links: string[] = [];
-    
-    console.log('开始提取文章链接，页面内容长度:', $.html().length);
-    
-    const selectors = [
-      'a[href*="/s?"]',
-      'a[href*="mp.weixin.qq.com/s"]',
-      'a[href*="__biz="]',
-      '.album_item a',
-      '.article-item a',
-      '.appmsg_item a',
-      '.js_album_item a',
-      'li a[href*="s?"]',
-      'div a[href*="s?"]',
-      '.album_list a',
-      '.msg_item a',
-      '.appmsg_wrapper a',
-      'a[data-link*="s?"]'
-    ];
-    
-    for (const selector of selectors) {
-      const elements = $(selector);
-      console.log(`选择器 "${selector}" 找到 ${elements.length} 个元素`);
-      
-      elements.each((_, element) => {
-        const href = $(element).attr('href') || $(element).attr('data-link');
-        if (href && links.length < maxCount) {
-          let fullUrl = href;
-          if (href.startsWith('/')) {
-            fullUrl = `https://mp.weixin.qq.com${href}`;
-          } else if (!href.startsWith('http')) {
-            fullUrl = `https://mp.weixin.qq.com/s/${href}`;
-          }
-          
-          if (fullUrl.includes('mp.weixin.qq.com/s') && fullUrl.includes('__biz=')) {
-            if (!links.includes(fullUrl)) {
-              console.log(`找到文章链接: ${fullUrl.substring(0, 100)}...`);
-              links.push(fullUrl);
-            }
-          }
-        }
-      });
-      
-      if (links.length >= maxCount) break;
-    }
-    
-    if (links.length === 0) {
-      console.log('使用正则表达式从页面源码中提取链接...');
-      const html = $.html();
-      const urlPattern = /https?:\/\/mp\.weixin\.qq\.com\/s\?[^"'\s<>]+/g;
-      const matches = html.match(urlPattern) || [];
-      
-      for (const match of matches) {
-        if (links.length >= maxCount) break;
-        const cleanUrl = match.replace(/&amp;/g, '&');
-        if (!links.includes(cleanUrl)) {
-          console.log(`正则提取到链接: ${cleanUrl.substring(0, 100)}...`);
-          links.push(cleanUrl);
-        }
-      }
-    }
-    
-    if (links.length < Math.min(maxCount, 10)) {
-      console.log('尝试更宽泛的链接提取...');
-      const html = $.html();
-      const bizPattern = /__biz=[^&"'\s<>]+/g;
-      const bizMatches = html.match(bizPattern) || [];
-      
-      for (const bizMatch of bizMatches) {
-        if (links.length >= maxCount) break;
-        const urlStart = html.indexOf('mp.weixin.qq.com/s?', html.indexOf(bizMatch) - 100);
-        if (urlStart > -1) {
-          const urlEnd = html.indexOf('"', urlStart);
-          if (urlEnd > urlStart) {
-            let fullUrl = html.substring(urlStart, urlEnd);
-            if (!fullUrl.startsWith('http')) {
-              fullUrl = 'https://' + fullUrl;
-            }
-            fullUrl = fullUrl.replace(/&amp;/g, '&');
-            if (!links.includes(fullUrl)) {
-              console.log(`宽泛匹配到链接: ${fullUrl.substring(0, 100)}...`);
-              links.push(fullUrl);
-            }
-          }
-        }
-      }
-    }
-    
-    console.log(`总共提取到 ${links.length} 个文章链接`);
-    return links.slice(0, maxCount);
   }
 
   private convertToMarkdown(content: string, title: string, author?: string, publishTime?: string): string {

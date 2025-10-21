@@ -25,7 +25,6 @@ export default function ExtractorCard({
 }: ExtractorCardProps) {
   const [url, setUrl] = useState('');
   const [maxCount, setMaxCount] = useState(0); // 0 表示不限制
-  const [useBrowser, setUseBrowser] = useState(true); // 默认使用浏览器模式
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
@@ -63,8 +62,7 @@ export default function ExtractorCard({
       const requestBody = type === 'album' 
         ? { 
             url: url.trim(), 
-            maxCount: maxCount > 0 ? maxCount : undefined, // 0 或空表示不限制
-            useBrowser 
+            maxCount: maxCount > 0 ? maxCount : undefined // 0 或空表示不限制
           }
         : { url: url.trim() };
 
@@ -89,8 +87,8 @@ export default function ExtractorCard({
         setArticles([data.data]);
         addLog('info', `成功提取文章: ${data.data.title}`);
       } else {
-        setArticles(data.data.articles);
-        addLog('info', `成功提取 ${data.data.articles.length} 篇文章`);
+        setArticles(data.articles);
+        addLog('info', `成功提取 ${data.articles.length} 篇文章`);
       }
 
       setProgress(100);
@@ -204,7 +202,7 @@ export default function ExtractorCard({
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                最大文章数量 (可选，留空表示不限制)
+                最大文章数量
               </label>
               <input
                 type="number"
@@ -212,10 +210,10 @@ export default function ExtractorCard({
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === '') {
-                    setMaxCount(0); // 0 表示不限制
+                    setMaxCount(0);
                   } else {
                     const num = parseInt(value);
-                    if (!isNaN(num) && num > 0) {
+                    if (!isNaN(num) && num >= 0) {
                       setMaxCount(num);
                     }
                   }
@@ -227,39 +225,6 @@ export default function ExtractorCard({
               />
               <p className="text-xs text-gray-500 mt-1">
                 留空或输入0表示提取所有文章。大量文章可能需要较长时间，建议先尝试较小数量。
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                提取模式
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="extractMode"
-                    checked={useBrowser}
-                    onChange={() => setUseBrowser(true)}
-                    disabled={loading}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">浏览器模式 (推荐)</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="extractMode"
-                    checked={!useBrowser}
-                    onChange={() => setUseBrowser(false)}
-                    disabled={loading}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">传统模式</span>
-                </label>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                浏览器模式支持懒加载，可获取更多文章；传统模式速度更快但可能遗漏部分文章。
               </p>
             </div>
           </>
