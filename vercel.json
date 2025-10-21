@@ -20,7 +20,7 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "functions": {
+/*   "functions": {
     "app/api/extract/single/route.ts": {
       "maxDuration": 30
     },
@@ -30,7 +30,7 @@
     "app/api/download/route.ts": {
       "maxDuration": 30
     }
-  },
+  }, */
   "headers": [
     {
       "source": "/api/(.*)",

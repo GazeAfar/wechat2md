@@ -25,7 +25,7 @@ export default function Header() {
           {/* 导航链接 */}
           <div className="flex items-center gap-4">
             <a
-              href="https://github.com"
+              href="https://github.com/GazeAfar/wechat2md"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"

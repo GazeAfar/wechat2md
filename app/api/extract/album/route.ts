@@ -3,7 +3,7 @@ import { extractor } from '@/lib/extractor';
 
 export async function POST(request: NextRequest) {
   try {
-    const { url, maxCount = 15 } = await request.json();
+    const { url, maxCount, useBrowser = true } = await request.json();
     
     if (!url) {
       return NextResponse.json(
@@ -20,25 +20,40 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 验证最大数量
-    const count = parseInt(maxCount);
-    if (isNaN(count) || count < 1 || count > 50) {
-      return NextResponse.json(
-        { error: '最大文章数量应在1-50之间' },
-        { status: 400 }
-      );
+    // 验证最大数量（移除上限限制，但保留合理性检查）
+    let count: number | undefined;
+    if (maxCount !== undefined && maxCount !== null) {
+      count = parseInt(maxCount);
+      if (isNaN(count) || count < 1) {
+        return NextResponse.json(
+          { error: '最大文章数量应大于0' },
+          { status: 400 }
+        );
+      }
+      // 给出警告但不阻止大数量提取
+      if (count > 1000) {
+        console.warn(`用户请求提取 ${count} 篇文章，数量较大，可能需要较长时间`);
+      }
     }
     
-    console.log('开始提取专辑文章:', url, '最大数量:', count);
+    console.log('开始提取专辑文章:', url, '最大数量:', count || '无限制', '使用浏览器模式:', useBrowser);
     
-    const articles = await extractor.extractAlbumArticles(url, count);
+    let articles;
+    if (useBrowser) {
+      // 使用浏览器模式进行懒加载提取
+      articles = await extractor.extractAlbumArticlesWithBrowser(url, count);
+    } else {
+      // 使用传统模式提取（保留兼容性）
+      articles = await extractor.extractAlbumArticles(url, count || 15);
+    }
     
     return NextResponse.json({
       success: true,
       data: {
         articles,
         total: articles.length,
-        extractedAt: new Date().toISOString()
+        extractedAt: new Date().toISOString(),
+        method: useBrowser ? 'browser' : 'traditional'
       }
     });
     
@@ -61,7 +76,7 @@ export async function GET() {
     usage: 'POST /api/extract/album',
     parameters: {
       url: '微信公众号专辑链接',
-      maxCount: '最大文章数量 (可选，默认15，最大50)'
+      maxCount: '最大文章数量 (可选，默认15，最大500)'
     }
   });
 }

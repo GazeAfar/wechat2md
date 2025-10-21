@@ -1,9 +1,24 @@
 'use client';
 
 import { BookOpen, FileText, Sparkles, Zap, Shield, Download } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import ExtractorCard from '@/components/ExtractorCard';
+
+// 动态导入 ExtractorCard 组件以提升初始加载速度
+const ExtractorCard = dynamic(() => import('@/components/ExtractorCard'), {
+  loading: () => (
+    <div className="glass rounded-xl p-8 animate-pulse">
+      <div className="h-8 bg-gray-200 rounded mb-4"></div>
+      <div className="h-4 bg-gray-200 rounded mb-6"></div>
+      <div className="space-y-4">
+        <div className="h-12 bg-gray-200 rounded"></div>
+        <div className="h-12 bg-gray-200 rounded"></div>
+        <div className="h-12 bg-gray-200 rounded"></div>
+      </div>
+    </div>
+  ),
+});
 
 export default function HomePage() {
   return (
