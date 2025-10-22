@@ -94,7 +94,16 @@ export class WeChatExtractor {
   
   constructor() {
     // 配置 axios 默认设置
-    axios.defaults.timeout = 30000;
+    axios.defaults.timeout = 45000;
+    axios.defaults.maxRedirects = 5;
+    // 添加默认的请求拦截器
+    axios.interceptors.request.use((config) => {
+      // 为每个请求添加随机延迟
+      const delay = Math.floor(Math.random() * 1000) + 500; // 500-1500ms 随机延迟
+      return new Promise(resolve => {
+        setTimeout(() => resolve(config), delay);
+      });
+    });
   }
 
   private getRandomUserAgent(): string {
@@ -115,9 +124,9 @@ export class WeChatExtractor {
     try {
       console.log(`开始使用浏览器提取专辑: ${albumUrl}`);
       
-      browser = await puppeteer.launch({
+      // 配置 Puppeteer 启动选项
+      const launchOptions: any = {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -129,7 +138,42 @@ export class WeChatExtractor {
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor'
         ]
-      });
+      };
+
+      // 在 Vercel 环境中使用指定的 executablePath
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      } else {
+        // 本地开发环境，尝试使用 Puppeteer 安装的 Chrome
+        try {
+          const puppeteerFull = await import('puppeteer');
+          browser = await puppeteerFull.default.launch(launchOptions);
+        } catch (error) {
+          // 如果 puppeteer 不可用，回退到 puppeteer-core 并尝试找到系统 Chrome
+          const os = require('os');
+          const path = require('path');
+          
+          let chromePath;
+          if (os.platform() === 'win32') {
+            chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+            if (!require('fs').existsSync(chromePath)) {
+              chromePath = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
+            }
+          } else if (os.platform() === 'darwin') {
+            chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+          } else {
+            chromePath = '/usr/bin/google-chrome';
+          }
+          
+          if (chromePath && require('fs').existsSync(chromePath)) {
+            launchOptions.executablePath = chromePath;
+          }
+        }
+      }
+
+      if (!browser) {
+        browser = await puppeteer.launch(launchOptions);
+      }
 
       const page = await browser.newPage();
       
@@ -376,11 +420,14 @@ export class WeChatExtractor {
   }
 
   /**
-   * 提取单篇文章
+   * 提取单篇文章（带重试机制）
    */
-  async extractSingleArticle(url: string): Promise<ArticleInfo> {
+  async extractSingleArticle(url: string, retryCount: number = 0): Promise<ArticleInfo> {
+    const maxRetries = 3;
+    const retryDelay = 1000 * (retryCount + 1); // 递增延迟：1s, 2s, 3s
+    
     try {
-      console.log(`开始提取文章: ${url}`);
+      console.log(`开始提取文章: ${url}${retryCount > 0 ? ` (重试 ${retryCount}/${maxRetries})` : ''}`);
       
       const response = await axios.get(url, {
         headers: {
@@ -388,11 +435,21 @@ export class WeChatExtractor {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
           'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
+          'Connection': 'close', // 改为 close 避免连接重用问题
           'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
-        timeout: 30000,
-        maxRedirects: 3
+        timeout: 45000, // 增加超时时间
+        maxRedirects: 5,
+        validateStatus: (status) => status < 500, // 允许 4xx 状态码，只重试 5xx
+        httpsAgent: new (require('https').Agent)({
+          keepAlive: false,
+          rejectUnauthorized: false
+        }),
+        httpAgent: new (require('http').Agent)({
+          keepAlive: false
+        })
       });
 
       const $ = cheerio.load(response.data);
@@ -419,6 +476,22 @@ export class WeChatExtractor {
       };
       
     } catch (error) {
+      const isNetworkError = error instanceof Error && (
+        error.message.includes('ECONNRESET') ||
+        error.message.includes('ETIMEDOUT') ||
+        error.message.includes('ENOTFOUND') ||
+        error.message.includes('socket hang up') ||
+        (error as any).code === 'ECONNRESET' ||
+        (error as any).code === 'ETIMEDOUT'
+      );
+      
+      // 如果是网络错误且还有重试次数，则重试
+      if (isNetworkError && retryCount < maxRetries) {
+        console.log(`网络错误，${retryDelay}ms 后重试...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return this.extractSingleArticle(url, retryCount + 1);
+      }
+      
       console.error(`提取文章失败: ${url}`, error);
       throw new Error(`提取文章失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
