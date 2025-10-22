@@ -127,8 +127,14 @@ export class WeChatExtractor {
     try {
       console.log(`开始使用浏览器提取专辑: ${albumUrl}`);
       
-      // 验证和清理 URL
+      // 验证和清理 URL - 提取真正的 URL 部分
       let cleanUrl = albumUrl.trim();
+      
+      // 如果包含日志信息，提取其中的 URL 部分
+      const urlMatch = cleanUrl.match(/https?:\/\/[^\s,，]+/);
+      if (urlMatch) {
+        cleanUrl = urlMatch[0];
+      }
       
       // 移除 URL 末尾的逗号或其他无效字符
       cleanUrl = cleanUrl.replace(/[,，\s]+$/, '');
@@ -137,6 +143,8 @@ export class WeChatExtractor {
       try {
         new URL(cleanUrl);
       } catch (urlError) {
+        console.error(`URL 验证失败，原始输入: ${albumUrl}`);
+        console.error(`清理后的 URL: ${cleanUrl}`);
         throw new Error(`无效的 URL 格式: ${cleanUrl}`);
       }
       
@@ -172,18 +180,18 @@ export class WeChatExtractor {
         
         try {
           // 动态导入 @sparticuz/chromium
-          chromium = await import('@sparticuz/chromium');
+          const chromiumModule = await import('@sparticuz/chromium');
           console.log('✅ 成功导入 @sparticuz/chromium');
           
           // 获取 @sparticuz/chromium 的可执行路径
-          const executablePath = await chromium.executablePath();
+          const executablePath = await chromiumModule.executablePath();
           console.log(`🔍 @sparticuz/chromium 可执行路径: ${executablePath}`);
           
           // 使用 @sparticuz/chromium 的完整配置
           launchOptions = {
             executablePath,
             args: [
-              ...chromium.args,
+              ...chromiumModule.args,
               '--no-sandbox',
               '--disable-setuid-sandbox',
               '--disable-dev-shm-usage',
@@ -193,8 +201,8 @@ export class WeChatExtractor {
               '--single-process',
               '--disable-gpu'
             ],
-            defaultViewport: chromium.defaultViewport,
-            headless: chromium.headless,
+            defaultViewport: chromiumModule.defaultViewport,
+            headless: chromiumModule.headless,
             ignoreHTTPSErrors: true
           };
           
