@@ -160,18 +160,35 @@ export class WeChatExtractor {
           chromium = await import('@sparticuz/chromium');
           console.log('✅ 成功导入 @sparticuz/chromium');
           
-          // 使用 @sparticuz/chromium 的配置
+          // 获取 @sparticuz/chromium 的可执行路径
+          const executablePath = await chromium.executablePath();
+          console.log(`🔍 @sparticuz/chromium 可执行路径: ${executablePath}`);
+          
+          // 使用 @sparticuz/chromium 的完整配置
           launchOptions = {
-            ...launchOptions,
-            executablePath: await chromium.executablePath(),
-            args: chromium.args,
-            headless: chromium.headless
+            executablePath,
+            args: [
+              ...chromium.args,
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--disable-accelerated-2d-canvas',
+              '--no-first-run',
+              '--no-zygote',
+              '--single-process',
+              '--disable-gpu'
+            ],
+            defaultViewport: chromium.defaultViewport,
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true
           };
           
+          console.log('🚀 使用 @sparticuz/chromium 配置启动浏览器...');
           browser = await puppeteer.launch(launchOptions);
           console.log('✅ @sparticuz/chromium 浏览器启动成功');
         } catch (error) {
           console.error('❌ @sparticuz/chromium 启动失败:', error.message);
+          console.error('❌ 错误堆栈:', error.stack);
           console.log('🔄 回退到标准路径检测...');
           chromium = null;
         }
