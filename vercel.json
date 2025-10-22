@@ -7,17 +7,19 @@
       "use": "@vercel/next"
     }
   ],
+  "buildCommand": "npm run build",
+  "installCommand": "npm install && npx puppeteer browsers install chrome",
   "env": {
     "NODE_ENV": "production",
     "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true",
-    "PUPPETEER_EXECUTABLE_PATH": "/usr/bin/google-chrome-stable"
+    "PUPPETEER_EXECUTABLE_PATH": "/home/sbx_user1051/.cache/puppeteer/chrome/linux-141.0.7390.78/chrome-linux64/chrome"
   },
   "functions": {
     "app/api/extract/album/route.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "app/api/extract/single/route.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
   "headers": [

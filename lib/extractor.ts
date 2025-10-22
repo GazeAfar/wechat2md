@@ -140,9 +140,31 @@ export class WeChatExtractor {
         ]
       };
 
-      // 在 Vercel 环境中使用指定的 executablePath
+      // 在 Vercel 或其他云环境中使用指定的 executablePath
       if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+        console.log(`使用环境变量指定的 Chrome 路径: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+      } else if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        // Vercel 环境的备用路径
+        const vercelChromePaths = [
+          '/home/sbx_user1051/.cache/puppeteer/chrome/linux-141.0.7390.78/chrome-linux64/chrome',
+          '/usr/bin/google-chrome-stable',
+          '/usr/bin/google-chrome',
+          '/usr/bin/chromium-browser'
+        ];
+        
+        for (const chromePath of vercelChromePaths) {
+          if (require('fs').existsSync(chromePath)) {
+            launchOptions.executablePath = chromePath;
+            console.log(`找到 Chrome 浏览器: ${chromePath}`);
+            break;
+          }
+        }
+        
+        if (!launchOptions.executablePath) {
+          console.error('在 Vercel 环境中未找到 Chrome 浏览器');
+          throw new Error('Chrome 浏览器未找到，请检查 Vercel 配置');
+        }
       } else {
         // 本地开发环境，尝试使用 Puppeteer 安装的 Chrome
         try {
