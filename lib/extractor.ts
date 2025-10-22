@@ -4,12 +4,12 @@ import TurndownService from 'turndown';
 import { Browser, Page } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
 
-// 动态导入 chrome-aws-lambda（仅在需要时）
+// 动态导入 @sparticuz/chromium（现代化的无服务器 Chrome 解决方案）
 let chromium: any = null;
 try {
-  chromium = require('chrome-aws-lambda');
+  chromium = require('@sparticuz/chromium');
 } catch (error) {
-  console.log('chrome-aws-lambda 未安装，将使用标准 Puppeteer 配置');
+  console.log('@sparticuz/chromium 未安装，将使用标准 Puppeteer 配置');
 }
 
 // 配置 Turndown 服务
@@ -161,12 +161,12 @@ export class WeChatExtractor {
         console.log('检测到 Vercel/生产环境...');
         
         if (chromium) {
-          console.log('✅ 使用 chrome-aws-lambda 启动浏览器');
+          console.log('✅ 使用 @sparticuz/chromium 启动浏览器');
           try {
-            // 使用 chrome-aws-lambda 的配置
+            // 使用 @sparticuz/chromium 的配置
             launchOptions = {
               ...launchOptions,
-              executablePath: await chromium.executablePath,
+              executablePath: await chromium.executablePath(),
               args: [
                 ...chromium.args,
                 '--no-sandbox',
@@ -184,11 +184,11 @@ export class WeChatExtractor {
             };
             
             browser = await puppeteer.launch(launchOptions);
-            console.log('✅ chrome-aws-lambda 浏览器启动成功');
+            console.log('✅ @sparticuz/chromium 浏览器启动成功');
           } catch (error) {
-            console.error('❌ chrome-aws-lambda 启动失败:', error.message);
+            console.error('❌ @sparticuz/chromium 启动失败:', error.message);
             console.log('🔄 回退到标准路径检测...');
-            // 如果 chrome-aws-lambda 失败，回退到原有逻辑
+            // 如果 @sparticuz/chromium 失败，回退到原有逻辑
             chromium = null;
           }
         }
@@ -253,12 +253,12 @@ export class WeChatExtractor {
           if (!foundChrome) {
             console.error('❌ 在 Vercel 环境中未找到任何可用的 Chrome 浏览器');
             console.error('🔧 建议解决方案:');
-            console.error('   1. 安装 chrome-aws-lambda: npm install chrome-aws-lambda');
+            console.error('   1. 安装 @sparticuz/chromium: npm install @sparticuz/chromium');
             console.error('   2. 或在 Vercel 控制台设置环境变量:');
             console.error('      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true');
             console.error('      PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable');
             console.error('📋 已检查的路径:', vercelChromePaths.join(', '));
-            throw new Error('Chrome 浏览器未找到，请安装 chrome-aws-lambda 或检查 Vercel 环境配置');
+            throw new Error('Chrome 浏览器未找到，请安装 @sparticuz/chromium 或检查 Vercel 环境配置');
           }
           
           if (!browser) {
