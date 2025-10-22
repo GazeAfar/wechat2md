@@ -140,30 +140,48 @@ export class WeChatExtractor {
         ]
       };
 
-      // 在 Vercel 或其他云环境中使用指定的 executablePath
+      // 检测运行环境并配置 Chrome 路径
+      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
+      const isProduction = process.env.NODE_ENV === 'production';
+      
+      console.log(`环境检测: VERCEL=${process.env.VERCEL}, VERCEL_ENV=${process.env.VERCEL_ENV}, NODE_ENV=${process.env.NODE_ENV}`);
+      console.log(`PUPPETEER_EXECUTABLE_PATH=${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+      console.log(`PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=${process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD}`);
+
       if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        // 优先使用环境变量指定的路径
         launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
         console.log(`使用环境变量指定的 Chrome 路径: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
-      } else if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-        // Vercel 环境的备用路径
+      } else if (isVercel || isProduction) {
+        // Vercel 环境：使用系统 Chrome
+        console.log('检测到 Vercel/生产环境，查找系统 Chrome...');
         const vercelChromePaths = [
-          '/home/sbx_user1051/.cache/puppeteer/chrome/linux-141.0.7390.78/chrome-linux64/chrome',
           '/usr/bin/google-chrome-stable',
           '/usr/bin/google-chrome',
-          '/usr/bin/chromium-browser'
+          '/usr/bin/chromium-browser',
+          '/usr/bin/chromium'
         ];
         
+        let foundChrome = false;
         for (const chromePath of vercelChromePaths) {
-          if (require('fs').existsSync(chromePath)) {
-            launchOptions.executablePath = chromePath;
-            console.log(`找到 Chrome 浏览器: ${chromePath}`);
-            break;
+          try {
+            if (require('fs').existsSync(chromePath)) {
+              launchOptions.executablePath = chromePath;
+              console.log(`找到系统 Chrome: ${chromePath}`);
+              foundChrome = true;
+              break;
+            }
+          } catch (error) {
+            console.log(`检查路径失败: ${chromePath}`, error);
           }
         }
         
-        if (!launchOptions.executablePath) {
+        if (!foundChrome) {
           console.error('在 Vercel 环境中未找到 Chrome 浏览器');
-          throw new Error('Chrome 浏览器未找到，请检查 Vercel 配置');
+          console.error('请确保在 Vercel 控制台设置了正确的环境变量:');
+          console.error('PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true');
+          console.error('PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable');
+          throw new Error('Chrome 浏览器未找到，请检查 Vercel 环境变量配置');
         }
       } else {
         // 本地开发环境，尝试使用 Puppeteer 安装的 Chrome
