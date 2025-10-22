@@ -128,7 +128,7 @@ export class WeChatExtractor {
       console.log(`开始使用浏览器提取专辑: ${albumUrl}`);
       
       // 配置 Puppeteer 启动选项
-      const launchOptions: any = {
+      let launchOptions: any = {
         headless: true,
         args: [
           '--no-sandbox',
