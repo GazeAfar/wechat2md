@@ -4,6 +4,14 @@ import TurndownService from 'turndown';
 import { Browser, Page } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
 
+// 动态导入 chrome-aws-lambda（仅在需要时）
+let chromium: any = null;
+try {
+  chromium = require('chrome-aws-lambda');
+} catch (error) {
+  console.log('chrome-aws-lambda 未安装，将使用标准 Puppeteer 配置');
+}
+
 // 配置 Turndown 服务
 const turndownService = new TurndownService({
   headingStyle: 'atx',
@@ -149,69 +157,113 @@ export class WeChatExtractor {
       console.log(`PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=${process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD}`);
 
       if (isVercel || isProduction) {
-        // Vercel 环境：查找可用的 Chrome 浏览器
-        console.log('检测到 Vercel/生产环境，查找系统 Chrome...');
+        // Vercel 环境：优先使用 chrome-aws-lambda
+        console.log('检测到 Vercel/生产环境...');
         
-        // 扩展的 Chrome 路径列表，包含更多可能的位置
-        const vercelChromePaths = [
-          // 环境变量指定的路径（优先级最高）
-          process.env.PUPPETEER_EXECUTABLE_PATH,
-          // 常见的系统 Chrome 路径
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/google-chrome',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-          // AWS Lambda 和其他云环境的路径
-          '/opt/chrome/chrome',
-          '/opt/google/chrome/chrome',
-          '/usr/local/bin/chrome',
-          '/usr/local/bin/google-chrome',
-          // Vercel 特定路径
-          '/vercel/.cache/puppeteer/chrome/linux-*/chrome-linux64/chrome',
-          // 备用路径
-          '/snap/bin/chromium',
-          '/var/task/chrome/chrome'
-        ].filter(Boolean); // 过滤掉 undefined 值
-        
-        let foundChrome = false;
-        for (const chromePath of vercelChromePaths) {
+        if (chromium) {
+          console.log('✅ 使用 chrome-aws-lambda 启动浏览器');
           try {
-            console.log(`检查 Chrome 路径: ${chromePath}`);
-            if (require('fs').existsSync(chromePath)) {
-              launchOptions.executablePath = chromePath;
-              console.log(`✅ 找到可用的 Chrome: ${chromePath}`);
-              foundChrome = true;
-              break;
-            } else {
-              console.log(`❌ 路径不存在: ${chromePath}`);
-            }
+            // 使用 chrome-aws-lambda 的配置
+            launchOptions = {
+              ...launchOptions,
+              executablePath: await chromium.executablePath,
+              args: [
+                ...chromium.args,
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-extensions',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding'
+              ]
+            };
+            
+            browser = await puppeteer.launch(launchOptions);
+            console.log('✅ chrome-aws-lambda 浏览器启动成功');
           } catch (error) {
-            console.log(`❌ 检查路径失败: ${chromePath}`, error.message);
+            console.error('❌ chrome-aws-lambda 启动失败:', error.message);
+            console.log('🔄 回退到标准路径检测...');
+            // 如果 chrome-aws-lambda 失败，回退到原有逻辑
+            chromium = null;
           }
         }
         
-        if (!foundChrome) {
-          // 尝试使用 which 命令查找 Chrome
-          try {
-            const { execSync } = require('child_process');
-            const whichChrome = execSync('which google-chrome-stable || which google-chrome || which chromium-browser || which chromium', { encoding: 'utf8' }).trim();
-            if (whichChrome) {
-              launchOptions.executablePath = whichChrome;
-              console.log(`✅ 通过 which 命令找到 Chrome: ${whichChrome}`);
-              foundChrome = true;
+        if (!chromium || !browser) {
+          // 回退到原有的路径检测逻辑
+          console.log('使用标准路径检测查找 Chrome...');
+          
+          // 扩展的 Chrome 路径列表，包含更多可能的位置
+          const vercelChromePaths = [
+            // 环境变量指定的路径（优先级最高）
+            process.env.PUPPETEER_EXECUTABLE_PATH,
+            // 常见的系统 Chrome 路径
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/google-chrome',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            // AWS Lambda 和其他云环境的路径
+            '/opt/chrome/chrome',
+            '/opt/google/chrome/chrome',
+            '/usr/local/bin/chrome',
+            '/usr/local/bin/google-chrome',
+            // Vercel 特定路径
+            '/vercel/.cache/puppeteer/chrome/linux-*/chrome-linux64/chrome',
+            // 备用路径
+            '/snap/bin/chromium',
+            '/var/task/chrome/chrome'
+          ].filter(Boolean); // 过滤掉 undefined 值
+          
+          let foundChrome = false;
+          for (const chromePath of vercelChromePaths) {
+            try {
+              console.log(`检查 Chrome 路径: ${chromePath}`);
+              if (require('fs').existsSync(chromePath)) {
+                launchOptions.executablePath = chromePath;
+                console.log(`✅ 找到可用的 Chrome: ${chromePath}`);
+                foundChrome = true;
+                break;
+              } else {
+                console.log(`❌ 路径不存在: ${chromePath}`);
+              }
+            } catch (error) {
+              console.log(`❌ 检查路径失败: ${chromePath}`, error.message);
             }
-          } catch (error) {
-            console.log('❌ which 命令查找失败:', error.message);
           }
-        }
-        
-        if (!foundChrome) {
-          console.error('❌ 在 Vercel 环境中未找到任何可用的 Chrome 浏览器');
-          console.error('🔧 请在 Vercel 控制台设置环境变量:');
-          console.error('   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true');
-          console.error('   PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable');
-          console.error('📋 已检查的路径:', vercelChromePaths.join(', '));
-          throw new Error('Chrome 浏览器未找到，请检查 Vercel 环境配置或联系管理员');
+          
+          if (!foundChrome) {
+            // 尝试使用 which 命令查找 Chrome
+            try {
+              const { execSync } = require('child_process');
+              const whichChrome = execSync('which google-chrome-stable || which google-chrome || which chromium-browser || which chromium', { encoding: 'utf8' }).trim();
+              if (whichChrome) {
+                launchOptions.executablePath = whichChrome;
+                console.log(`✅ 通过 which 命令找到 Chrome: ${whichChrome}`);
+                foundChrome = true;
+              }
+            } catch (error) {
+              console.log('❌ which 命令查找失败:', error.message);
+            }
+          }
+          
+          if (!foundChrome) {
+            console.error('❌ 在 Vercel 环境中未找到任何可用的 Chrome 浏览器');
+            console.error('🔧 建议解决方案:');
+            console.error('   1. 安装 chrome-aws-lambda: npm install chrome-aws-lambda');
+            console.error('   2. 或在 Vercel 控制台设置环境变量:');
+            console.error('      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true');
+            console.error('      PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable');
+            console.error('📋 已检查的路径:', vercelChromePaths.join(', '));
+            throw new Error('Chrome 浏览器未找到，请安装 chrome-aws-lambda 或检查 Vercel 环境配置');
+          }
+          
+          if (!browser) {
+            browser = await puppeteer.launch(launchOptions);
+          }
         }
       } else {
         // 本地开发环境，尝试使用 Puppeteer 安装的 Chrome
