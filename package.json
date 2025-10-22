@@ -1,7 +1,7 @@
 {
   "name": "wechat-article-extractor",
   "version": "1.0.0",
-  "description": "微信公众号文章提取工具 - Vercel部署版",
+  "description": "微信公众号文章提取工具",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
@@ -10,8 +10,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "preview": "next build && next start",
-    "clean": "rm -rf .next out",
-    "vercel-build": "next build"
+    "clean": "rm -rf .next out"
   },
   "dependencies": {
     "@sparticuz/chromium": "^141.0.0",

@@ -71,20 +71,7 @@ export default function Footer() {
               © 2025 微信公众号文章提取工具. 保留所有权利.
             </p>
             
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span>部署在</span>
-              <a
-                href="https://vercel.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-gray-700 transition-colors"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2L2 19.777h20L12 2z" />
-                </svg>
-                Vercel
-              </a>
-            </div>
+
           </div>
         </div>
       </div>

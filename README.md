@@ -1,18 +1,18 @@
 # 微信公众号文章提取工具
 
-一个现代化的微信公众号文章提取工具，基于 Next.js 14 和 TypeScript 构建。支持单篇文章和专辑批量提取，自动转换为 Markdown 格式，可一键部署到 Vercel。
+一个现代化的微信公众号文章提取工具，基于 Next.js 14 和 TypeScript 构建。支持单篇文章和专辑批量提取，自动转换为 Markdown 格式。
 
 ## ✨ 功能特点
 
 - 🚀 **现代化架构**: 基于 Next.js 14 + TypeScript + Tailwind CSS
-- 🌐 **纯前端实现**: 无需后端服务器，直接在浏览器中运行
+- 🌐 **本地运行**: 在本地环境中运行，数据安全可控
 - 📱 **响应式设计**: 完美适配桌面端和移动端
 - 🎯 **智能提取**: 支持单篇文章和专辑批量提取
 - 📝 **Markdown 输出**: 自动转换为格式化的 Markdown 文件
 - 🖼️ **图片处理**: 智能处理微信图片链接，保持图片完整性
 - 📦 **批量下载**: 支持将提取的文章打包为 ZIP 文件下载
-- ⚡ **快速部署**: 一键部署到 Vercel，无需服务器配置
 - 🎨 **美观界面**: 现代化 UI 设计，用户体验优秀
+- 🖥️ **跨平台支持**: 支持 Windows、macOS 和 Linux 系统
 
 ## 🛠️ 技术栈
 
@@ -24,11 +24,13 @@
 - **HTML 解析**: Cheerio
 - **Markdown 转换**: Turndown
 - **文件处理**: JSZip
+- **浏览器自动化**: Puppeteer
 
 ## 📋 系统要求
 
 - Node.js 18.0.0 或更高版本
 - npm 或 yarn 包管理器
+- Google Chrome 浏览器（用于文章提取）
 - 现代浏览器（Chrome、Firefox、Safari、Edge）
 
 ## 🚀 快速开始
@@ -125,20 +127,33 @@ npm run clean
 
 ## 🌐 部署
 
-### Vercel 部署（推荐）
+### 本地部署
 
-1. 将代码推送到 GitHub 仓库
-2. 在 [Vercel](https://vercel.com) 中导入项目
-3. 自动部署完成
+1. 按照上述"快速开始"步骤安装和运行
+2. 确保已安装 Google Chrome 浏览器
+3. 访问 http://localhost:3000 开始使用
 
-### 其他平台部署
+### 生产环境部署
 
 项目支持部署到任何支持 Node.js 的平台：
 
-- Netlify
-- Railway
-- Render
 - 自建服务器
+- VPS 主机
+- Docker 容器
+- 其他 Node.js 托管平台
+
+#### Docker 部署示例
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
 
 ## 📝 输出格式
 
@@ -172,12 +187,16 @@ npm run clean
 1. **合规使用**: 请遵守微信公众号的使用条款和相关法律法规
 2. **频率控制**: 建议适当控制提取频率，避免对服务器造成压力
 3. **网络环境**: 确保网络连接稳定，部分文章可能需要较长加载时间
-4. **浏览器兼容**: 推荐使用最新版本的现代浏览器
-5. **CORS 限制**: 某些文章可能因为 CORS 策略无法直接提取
+4. **浏览器要求**: 需要安装 Google Chrome 浏览器用于文章提取
+5. **系统兼容**: 支持 Windows、macOS 和 Linux 系统
+6. **本地运行**: 所有数据处理都在本地进行，保护隐私安全
 
 ## 🐛 故障排除
 
 ### 常见问题
+
+**Q: 提取失败，显示 Chrome 浏览器未找到**  
+A: 请确保已安装 Google Chrome 浏览器，或设置 PUPPETEER_EXECUTABLE_PATH 环境变量
 
 **Q: 提取失败，显示网络错误**  
 A: 检查网络连接，确认文章链接是否正确且可访问
@@ -188,8 +207,8 @@ A: 微信图片有防盗链机制，建议在微信环境中查看
 **Q: 专辑提取数量不足**  
 A: 某些专辑可能需要登录或有访问限制
 
-**Q: 部署后功能异常**  
-A: 检查环境变量配置和 CORS 设置
+**Q: Mac 系统无法正常运行**  
+A: 确保已安装 Google Chrome，系统会自动检测 Chrome 路径
 
 ### 调试模式
 
@@ -217,7 +236,7 @@ A: 检查环境变量配置和 CORS 设置
 
 - [Next.js 文档](https://nextjs.org/docs)
 - [Tailwind CSS 文档](https://tailwindcss.com/docs)
-- [Vercel 部署指南](https://vercel.com/docs)
+- [Puppeteer 文档](https://pptr.dev/)
 
 ---
 
