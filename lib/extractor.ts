@@ -127,6 +127,21 @@ export class WeChatExtractor {
     try {
       console.log(`开始使用浏览器提取专辑: ${albumUrl}`);
       
+      // 验证和清理 URL
+      let cleanUrl = albumUrl.trim();
+      
+      // 移除 URL 末尾的逗号或其他无效字符
+      cleanUrl = cleanUrl.replace(/[,，\s]+$/, '');
+      
+      // 验证 URL 格式
+      try {
+        new URL(cleanUrl);
+      } catch (urlError) {
+        throw new Error(`无效的 URL 格式: ${cleanUrl}`);
+      }
+      
+      console.log(`清理后的 URL: ${cleanUrl}`);
+      
       // 配置 Puppeteer 启动选项
       let launchOptions: any = {
         headless: true,
@@ -306,7 +321,7 @@ export class WeChatExtractor {
       await page.setViewport({ width: 1366, height: 768 });
       
       // 访问专辑页面
-      await page.goto(albumUrl, { 
+      await page.goto(cleanUrl, { 
         waitUntil: 'networkidle2',
         timeout: 60000 
       });
