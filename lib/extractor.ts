@@ -163,7 +163,7 @@ export class WeChatExtractor {
           // 使用 @sparticuz/chromium 的配置
           launchOptions = {
             ...launchOptions,
-            executablePath: await chromium.executablePath,
+            executablePath: await chromium.executablePath(),
             args: chromium.args,
             headless: chromium.headless
           };
